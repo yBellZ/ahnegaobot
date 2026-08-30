@@ -1,30 +1,34 @@
 import httpx
 import re
+import random
 from bs4 import BeautifulSoup
 
-link = 'https://www.ahnegao.com.br/t/coletanea-de-memes-aleatorios'
-termo = 'coletanea'
+URL_LISTAGEM = 'https://www.ahnegao.com.br/t/coletanea-de-memes-aleatorios'
+TERMO = 'coletanea'
+PADRAO_POST = re.compile(r"\d+/\d+/coletanea")
 
 with httpx.Client(http2=True) as client:
-    resp = client.get(link)
+    resp = client.get(URL_LISTAGEM)
+    soup = BeautifulSoup(resp.text, 'html.parser')
 
-soup = BeautifulSoup(resp.text, 'html.parser')
-todos_links = soup.select(f'a[href*="{termo}"]')
+    hrefs = (a.get("href") for a in soup.select(f'a[href*="{TERMO}"]'))
 
-links_filtrados = [
-    a.get("href") for a in todos_links
-    if a.get("href").startswith("http")
-    and "whatsapp://" not in a.get("href")
-    and "#comments" not in a.get("href")
-]
+    links_posts = {
+        href for href in hrefs
+        if href.startswith("http")
+        and "whatsapp://" not in href
+        and PADRAO_POST.search(href)
+    }
 
-padrao = re.compile(r"\d+/\d+/coletanea")
+    coletanea_aleatoria = random.choice(list(links_posts))
 
-links_filtrados = [link for link in links_filtrados if padrao.search(link)]
+    resp = client.get(coletanea_aleatoria)
+    soup = BeautifulSoup(resp.text, 'html.parser')
 
-print(dict.fromkeys(links_filtrados))
+    imagens_meme = [
+        img.get("src") for img in soup.find_all("img", src=True)
+        if "meme" in img.get("src")
+    ]
 
-# links_filtrados = list(dict.fromkeys(links_filtrados))
-
-# for l in links_filtrados:
-#     print(l)
+for src in imagens_meme:
+    print(src)
