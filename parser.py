@@ -1,13 +1,20 @@
+from dotenv import load_dotenv
 import httpx
 import re
 import random
+import os
 from bs4 import BeautifulSoup
 
-URL_LISTAGEM = 'https://www.ahnegao.com.br/t/coletanea-de-memes-aleatorios'
+load_dotenv()
+
+URL_LISTAGEM = [
+                'https://www.ahnegao.com.br/t/coletanea-de-memes-aleatorios',
+                'https://www.ahnegao.com.br/t/coletanea-de-imagens-aleatorias',
+                'https://www.ahnegao.com.br/t/coletanea-de-memes-peculiares'
+]
 TERMO = 'coletanea'
 PADRAO_POST = re.compile(r"\d+/\d+/coletanea")
-WEBHOOK_URL = "https://discord.com/api/webhooks/1543569018601078904/aa-T5wxbEHevg9qK5NENqdD8Op9N0RE2xJGNs4TIfnHK9HZgUxr5tltossJ3XCMm7dkF"
-
+WEBHOOK_URL = os.environ["DISCORD_WEBHOOK_URL"]
 
 def buscar_links_de_posts(client: httpx.Client, url: str, termo: str) -> set[str]:
     resp = client.get(url)
@@ -29,14 +36,16 @@ def buscar_imagens_de_meme(client: httpx.Client, url_post: str) -> list[str]:
 
     return [
         img.get("src") for img in soup.find_all("img", src=True)
-        if "meme" in img.get("src")
+        if re.search(r"/uploads/\d{4}/\d{2}/(meme|imgaleat|pec)", img.get("src"))
     ]
+
 
 
 def montar_payload(url_imagem: str, url_post: str) -> dict:
     return {
         "embeds": [
             {
+                "title": "Meme do dia",
                 "image": {"url": url_imagem},
                 "footer": {"text": "Meme pego em Ahnegao.com.br"},
                 "color": 8927205
@@ -57,7 +66,7 @@ def enviar_imagem_discord(client: httpx.Client, url_imagem: str, url_post: str):
 
 def main():
     with httpx.Client(http2=True) as client:
-        links_posts = buscar_links_de_posts(client, URL_LISTAGEM, TERMO)
+        links_posts = buscar_links_de_posts(client, random.choice(URL_LISTAGEM), TERMO)
         post_aleatorio = random.choice(list(links_posts))
         imagens = buscar_imagens_de_meme(client, post_aleatorio)
 
