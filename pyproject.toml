@@ -1,0 +1,21 @@
+[project]
+name = "testeparseador"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+authors = [
+    { name = "Bell", email = "guizadinho2@gmail.com" }
+]
+requires-python = ">=3.12"
+dependencies = [
+    "beautifulsoup4>=4.15.0",
+    "h2>=4.4.1",
+    "httpx[http2]>=0.28.1",
+]
+
+[project.scripts]
+testeparseador = "testeparseador:main"
+
+[build-system]
+requires = ["uv_build>=0.12.4,<0.13.0"]
+build-backend = "uv_build"
