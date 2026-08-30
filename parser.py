@@ -6,14 +6,13 @@ from bs4 import BeautifulSoup
 URL_LISTAGEM = 'https://www.ahnegao.com.br/t/coletanea-de-memes-aleatorios'
 TERMO = 'coletanea'
 PADRAO_POST = re.compile(r"\d+/\d+/coletanea")
+WEBHOOK_URL = "https://discord.com/api/webhooks/1543569018601078904/aa-T5wxbEHevg9qK5NENqdD8Op9N0RE2xJGNs4TIfnHK9HZgUxr5tltossJ3XCMm7dkF"
 
 
 def buscar_links_de_posts(client: httpx.Client, url: str, termo: str) -> set[str]:
     resp = client.get(url)
     soup = BeautifulSoup(resp.text, 'html.parser')
-
     hrefs = (a.get("href") for a in soup.select(f'a[href*="{termo}"]'))
-
     return {
         href for href in hrefs
         if href.startswith("http")
@@ -25,11 +24,15 @@ def buscar_links_de_posts(client: httpx.Client, url: str, termo: str) -> set[str
 def buscar_imagens_de_meme(client: httpx.Client, url_post: str) -> list[str]:
     resp = client.get(url_post)
     soup = BeautifulSoup(resp.text, 'html.parser')
-
     return [
         img.get("src") for img in soup.find_all("img", src=True)
         if "meme" in img.get("src")
     ]
+
+
+def enviar_imagem_discord(client: httpx.Client, url_imagem: str):
+    resp = client.post(WEBHOOK_URL, json={"content": url_imagem})
+    resp.raise_for_status()
 
 
 def main():
@@ -38,8 +41,8 @@ def main():
         post_aleatorio = random.choice(list(links_posts))
         imagens = buscar_imagens_de_meme(client, post_aleatorio)
 
-    for src in imagens:
-        print(src)
+        imagem_aleatoria = random.choice(imagens)
+        enviar_imagem_discord(client, imagem_aleatoria)
 
 
 if __name__ == "__main__":
