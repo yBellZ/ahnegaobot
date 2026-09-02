@@ -50,9 +50,8 @@ def montar_payload(url_imagem: str, url_post: str) -> dict:
     return {
         "embeds": [
             {
-                "title": "Meme do dia",
                 "image": {"url": url_imagem},
-                "footer": {"text": f"Ahnegao.com.br — {COLETANEA_NOME}"},
+                "footer": {"text": f"Ah Negão! — {COLETANEA_NOME}"},
                 "color": 8927205
             }
         ]
