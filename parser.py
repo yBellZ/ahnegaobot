@@ -19,11 +19,20 @@ COLETANEAS = {
     'https://www.ahnegao.com.br/c/videos': 'videos'
 }
 
+PESO_COLETANEA = [50, 60, 70, 30]
+
+# SUBREDDITS = {
+#     'https://www.reddit.com/r/meiaum/': 'r/meiaum',
+#     'https://www.reddit.com/r/chuveirosfeios/': 'r/chuveirosfeios',
+#     'https://www.reddit.com/r/NaoMortoAbraDentro/': 'r/NaoMortoAbraDentro/',
+#     'https://www.reddit.com/r/maybemaybemaybe/': 'r/maybemaybemaybe/',
+#     'https://www.reddit.com/r/ItHadToBeBrazil/': 'r/ItHadToBeBrazil/'
+# }
+
 URL_LISTAGEM = list(COLETANEAS.keys())
-COLETANEA_URL = random.choice(URL_LISTAGEM)
+COLETANEA_URL = random.choices(URL_LISTAGEM, weights=PESO_COLETANEA, k=1)[0]
 COLETANEA_NOME = COLETANEAS[COLETANEA_URL]
 
-# Padrão genérico ahnegao.com.br/AAAA/MM/ em vez de mês fixo — não expira todo mês.
 PADRAO_DATA_POST = re.compile(r"ahnegao\.com\.br/\d{4}/\d{2}/")
 TERMO = 'ahnegao.com.br/'
 PADRAO_POST = re.compile(r"\d+/\d+/.*")
@@ -32,6 +41,7 @@ WEBHOOK_URL = os.environ["DISCORD_WEBHOOK_URL"]
 
 def buscar_links_de_posts(client: httpx.Client, url: str, termo: str) -> set[str]:
     resp = client.get(url)
+    resp.raise_for_status()
     soup = BeautifulSoup(resp.text, 'html.parser')
 
     hrefs = (a.get("href") for a in soup.select(f'a[href*="{termo}"]'))
@@ -41,7 +51,8 @@ def buscar_links_de_posts(client: httpx.Client, url: str, termo: str) -> set[str
 
     return {
         href for href in hrefs
-        if href.startswith("http")
+        if href
+        and href.startswith("http")
         and "whatsapp://" not in href
         and "#comments" not in href
         and not (EH_COLETANEA and IGNORAR_COLETANEA.search(href))
@@ -50,8 +61,9 @@ def buscar_links_de_posts(client: httpx.Client, url: str, termo: str) -> set[str
     }
 
 
-def titulo_post(client: httpx.Client, url_post: str):
+def titulo_post(client: httpx.Client, url_post: str) -> str:
     resp = client.get(url_post)
+    resp.raise_for_status()
     soup = BeautifulSoup(resp.text, 'html.parser')
 
     titulo = soup.find('h1', class_='entry-title')
@@ -59,8 +71,12 @@ def titulo_post(client: httpx.Client, url_post: str):
     if titulo:
         return titulo.text.strip()
 
+    return "Ah Negão!"
+
+
 def buscar_midias_de_meme(client: httpx.Client, url_post: str) -> list[str]:
     resp = client.get(url_post)
+    resp.raise_for_status()
     soup = BeautifulSoup(resp.text, 'html.parser')
 
     midias = []
@@ -171,14 +187,29 @@ def enviar_content_discord(
 
 def main():
     timeout = httpx.Timeout(30.0, connect=10.0)
-    with httpx.Client(http2=True, timeout=timeout) as client:
+    with httpx.Client(http2=True, timeout=timeout, follow_redirects=True) as client:
         links_posts = buscar_links_de_posts(client, COLETANEA_URL, TERMO)
-        post_aleatorio = random.choice(list(links_posts))
+
+        if not links_posts:
+            print("Nenhum post encontrado nessa coletânea")
+            return
+
+        links_posts_lista = list(links_posts)
+        for _ in range(random.randint(3, 10)):
+            random.shuffle(links_posts_lista)
+            print(f"{'-' * 60}\n{links_posts_lista}")
+
+        post_aleatorio = random.choice(list(links_posts_lista))
+
         midias = buscar_midias_de_meme(client, post_aleatorio)
 
-        if not post_aleatorio or not midias:
+        if not midias:
             print("Nenhum post com mídia encontrada nessa coletânea")
             return
+
+        for _ in range(random.randint(3, 10)):
+            random.shuffle(midias)
+            print(f"{'-' * 60}\n{midias}")
 
         midia_aleatoria = random.choice(midias)
 
@@ -191,23 +222,24 @@ def main():
                 midia_nome=midia_nome
             )
         else:
+            midia_bytes = None
             enviar_content_discord(
                 client, post_aleatorio,
                 midia_url=midia_aleatoria
             )
 
-
         print("Link dos posts:")
-        for i in links_posts:
-            print("|— " + i)
-        
+        for link in links_posts:
+            print("|— " + link)
+
         print("\nPost aleatório: - " + post_aleatorio)
-        for i in midias:
-            print("|— " + i)
+        print("Mídias encontradas:")
+        for midia in midias:
+            print("|— " + midia)
 
         print("\nMídia aleatória: " + midia_aleatoria)
 
-        if 'youtube.com' in midia_aleatoria:
+        if 'youtube.com' in midia_aleatoria and midia_bytes is not None:
             tamanho_bytes = midia_bytes.getbuffer().nbytes
             tamanho_mb = tamanho_bytes / (1024 * 1024)
             print(f"Tamanho vídeo: {tamanho_mb:.2f} MB")
