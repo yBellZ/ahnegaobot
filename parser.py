@@ -19,7 +19,7 @@ COLETANEAS = {
     'https://www.ahnegao.com.br/c/videos': 'videos'
 }
 
-PESO_COLETANEA = [50, 60, 70, 30]
+PESO_COLETANEA = [50, 60, 70, 5]
 
 # SUBREDDITS = {
 #     'https://www.reddit.com/r/meiaum/': 'r/meiaum',
